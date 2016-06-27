@@ -40,6 +40,9 @@ public class AsyncPool
     private long counter = 0 ;
     private Map<String, AsyncTask> runningTasks = new LinkedHashMap<>() ; 
     private Map<String, AsyncTask> finishedTasks = new LinkedHashMap<>() ;
+
+    // forms a ring buffer so we can remove in reverse order
+    private List<AsyncTask> finishedTasksInOrder = new ArrayList<>();
     
     private static AsyncPool instance = new AsyncPool() ;
     public static AsyncPool get() 
@@ -72,9 +75,13 @@ public class AsyncPool
         synchronized(mutex) {
             String id = task.getTaskId() ;
             runningTasks.remove(id) ;
-            while ( finishedTasks.size() >= MAX_FINISHED )
-                finishedTasks.remove(task.getTaskId()) ;
+            while ( finishedTasks.size() >= MAX_FINISHED ) {
+                AsyncTask removeTask = finishedTasksInOrder.get(0) ;
+                finishedTasksInOrder.remove(0) ;
+                finishedTasks.remove(removeTask.getTaskId()) ;
+            }
             finishedTasks.put(id, task) ;
+            finishedTasksInOrder.add(task);
         }
     }
 
